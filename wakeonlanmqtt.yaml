@@ -1,0 +1,140 @@
+esphome:
+  name: pcbooter
+
+esp32:
+  board: dfrobot_beetle_esp32c3 # Similar enough board to SuperMini ESP32-C3
+  framework:
+    type: esp-idf
+
+# Enable logging (can be noisy in MQTT)
+logger:
+  level: INFO
+
+# Enable Home Assistant API 
+# (disabled due to MQTT usage elsewhere, see warning here: https://esphome.io/components/mqtt.html) 
+# api:
+#   password: ""
+
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Pcbooter Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+
+# [Optional] web server for administrative purposes and flexibility
+# Allows remote firmware updates and has 2 buttons for easy WOL testing
+web_server:
+  port: 80
+
+button:
+  - platform: wake_on_lan
+    name: "Start PVE1"
+    target_mac_address: !secret pve1_mac
+  - platform: wake_on_lan
+    name: "Start PVE2"
+    target_mac_address: !secret pve2_mac
+
+
+# https://esphome.io/cookbook/lambda_magic.html
+# https://api-docs.esphome.io/wake__on__lan_8cpp_source
+# https://www.geeksforgeeks.org/c/program-remotely-power-pc-internet-using-wake-lan-protocol/
+# Basically the same contents as wol.cpp, which can be compiled and run on linux
+script:
+- id: wake_on_lan_cpp
+  parameters:
+    mac_str: string
+  then:
+    - lambda: |-
+        uint32_t mac_in[6];
+
+        int res;
+        res = sscanf(mac_str.c_str(), "%x:%x:%x:%x:%x:%x", &mac_in[0],&mac_in[1],&mac_in[2],&mac_in[3],&mac_in[4],&mac_in[5]);
+        if (res < 6){
+            ESP_LOGD("lambda","ERROR SSCANF - INVALID MAC FORMAT %s",mac_str.c_str());
+            return;
+        }
+        uint8_t mac[6];
+        int i;
+        for (i=0; i<6; i++)
+            mac[i] = static_cast<uint8_t>(mac_in[i]);
+
+        int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+        struct sockaddr_in destination, source;
+        int broadcast = 1 ;
+        
+        res = setsockopt(sock, SOL_SOCKET, SO_BROADCAST,&broadcast, sizeof broadcast);
+        if (res == -1){
+            ESP_LOGD("lambda","ERROR SO_BROADCAST: %d", errno);
+            ::close(sock);
+            return;
+        }
+
+        uint8_t toSend[102];
+
+        for (i=0; i<6; i++)
+            toSend[i] = 0xFF;
+
+        for (i=1; i<=16; i++)
+            memcpy(&toSend[i*6], &mac, 6*sizeof(uint8_t));
+        
+
+        destination.sin_family = AF_INET;
+        destination.sin_addr.s_addr = -1;
+        destination.sin_port = htons(40000);
+
+        int n_bytes = ::sendto(sock, &toSend, sizeof(toSend), 0, reinterpret_cast<sockaddr*>(&destination), sizeof(destination));
+        ESP_LOGD("lambda", "Sent WOL to %s\n", mac_str.c_str());
+        ::close(sock);
+
+mqtt:
+  broker: !secret mqtt_broker
+  port: 8883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  certificate_authority: !secret mqtt_certificate_authority # TLS cert for MQTT broker
+  # skip_cert_cn_check: true
+
+  # Optional debug message on connect to MQTT broker
+  birth_message:
+    topic: "pcbooter/debug"
+    payload: '{"id":"pcbooter","type":"ESP","state":"Connected"}'
+
+  # Optional debug message on disconnect from MQTT broker
+  will_message:
+    topic: "pcbooter/debug"
+    payload: '{"id":"pcbooter","type":"ESP","state":"Disconnected"}'
+
+  on_message:
+    - topic: "DroidPad/Events"
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "{\"id\":\"boot-pve2\",\"type\":\"BUTTON\",\"state\":\"CLICK\"}";'
+            then:
+              - logger.log:
+                  format: '{"id": "pcbooter", "type": "ESP", "state": "SENDING MAGICK PACKET"}'
+                  args: []
+              - script.execute:
+                  id: wake_on_lan_cpp
+                  mac_str: !secret pve2_mac
+              # - mqtt.publish:
+              #     topic: some/topic
+              #     payload: "Sent WOL!"
+        - if:
+            condition:
+              lambda: 'return x == "{\"id\":\"boot-pve1\",\"type\":\"BUTTON\",\"state\":\"CLICK\"}";'
+            then:
+              - logger.log:
+                  format: '{"id": "pcbooter", "type": "ESP", "state": "SENDING MAGICK PACKET"}'
+                  args: []
+              - script.execute:
+                  id: wake_on_lan_cpp
+                  mac_str: !secret pve1_mac
+        
