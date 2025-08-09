@@ -1,0 +1,47 @@
+{
+  "controlPad": {
+    "name": "Boot Proxmox",
+    "orientation": "PORTRAIT",
+    "width": 1080,
+    "height": 2006
+  },
+  "controlPadItems": [
+    {
+      "itemIdentifier": "boot-pve2",
+      "controlPadId": 2,
+      "offsetX": 592.8671,
+      "offsetY": 440.19556,
+      "itemType": "BUTTON",
+      "properties": "{\"text\":\"Boot\",\"buttonColor\":18437905095438893056,\"useIcon\":true,\"useClickAction\":true}"
+    },
+    {
+      "itemIdentifier": "label",
+      "controlPadId": 2,
+      "offsetX": 226.58899,
+      "offsetY": 507.9582,
+      "itemType": "LABEL",
+      "properties": "{\"text\":\"Boot pve 2\"}"
+    },
+    {
+      "itemIdentifier": "boot-pve1",
+      "controlPadId": 2,
+      "offsetX": 580.7346,
+      "offsetY": 898.02954,
+      "itemType": "BUTTON",
+      "properties": "{\"buttonColor\":18446564423817494528,\"useIcon\":true,\"useClickAction\":true}"
+    },
+    {
+      "itemIdentifier": "label",
+      "controlPadId": 2,
+      "offsetX": 209.05652,
+      "offsetY": 954.0,
+      "itemType": "LABEL",
+      "properties": "{\"text\":\"Boot pve 1\"}"
+    }
+  ],
+  "connectionConfig": {
+    "controlPadId": 2,
+    "connectionType": "MQTT_V5",
+    "configJson": "{\"brokerIp\":\"FIXME\",\"brokerPort\":8883,\"qos\":0,\"useCredentials\":true,\"userName\":\"FIXME\",\"password\":\"FIXME\",\"useSSL\":true}"
+  }
+}
