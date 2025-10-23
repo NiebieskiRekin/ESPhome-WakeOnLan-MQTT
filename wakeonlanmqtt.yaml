@@ -1,9 +1,8 @@
 esphome:
   name: pcbooter
-  platformio_options:
-    build_flags:
-      - -DTX_POWER=WIFI_POWER_11dBm # Increase WiFI power to improve signal
-      - -DLED_ON=LOW  # Toggle the LED off
+  # platformio_options:
+  #   build_flags:
+  #     - -DTX_POWER=WIFI_POWER_11dBm # Increase WiFI power to improve signal
 
 esp32:
   board: dfrobot_beetle_esp32c3 # Similar enough board to SuperMini ESP32-C3
