@@ -95,7 +95,7 @@ script:
 
 mqtt:
   broker: !secret mqtt_broker
-  port: 8883
+  port: !secret mqtt_port
   username: !secret mqtt_username
   password: !secret mqtt_password
   certificate_authority: !secret mqtt_certificate_authority # TLS cert for MQTT broker
