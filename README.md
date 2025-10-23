@@ -16,8 +16,21 @@ This repository contains my setup using an excellent embedded development framew
    - `uv sync`
    - Fill missing values in `main.py`
    - `uv run python main.py`
-4. Download the TLS certificate of your MQTT broker and copy the text content in PEM format, repeat every few months. Alternatively set `skip_cert_cn_check: true`
-5. Create a new file `secrets.yaml` and fill it with correct values for your setup using the provided template `secrets.example.yaml`
+4. Create a new file `secrets.yaml` and fill it with correct values for your setup using the provided template `secrets.example.yaml`
+5. Download the TLS certificate chain of your MQTT broker and copy the text content in PEM format. Ready to use command:
+    ```bash
+    # Download fullchain cert, repeat every ~60 days
+    broker="$(yq -r .mqtt_broker secrets.yaml)"
+    port="$(yq -r .mqtt_port secrets.yaml)"
+    mqtt_certificate_authority="$(openssl s_client -showcerts \
+      -servername "$broker" \
+      -connect "$broker:$port" < /dev/null 2>/dev/null |
+      awk '/^---$/ { n++ } n==1, n==2' | sed '/^---$/d')"
+    yq -i '.mqtt_cert = load_str("/dev/stdin")' secrets.yaml <<EOF
+    ${mqtt_certificate_authority}
+    EOF
+    ```
+    Alternatively set `skip_cert_cn_check: true` in `wakeonlanmqtt.yaml` to skip skip host verification entirely (insecure).
 6. The main file is `wakeonlanmqtt.yaml` which is the base firmware for the ESP, written in [ESPhome](https://esphome.io/guides/getting_started_command_line.html). It can be compiled and uploaded using
    ```bash
    docker run --rm --privileged -v "${PWD}":/config --device=/dev/ttyUSB0 -it ghcr.io/esphome/esphome run wakeonlanmqtt.yaml
